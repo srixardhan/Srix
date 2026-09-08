@@ -1,103 +1,116 @@
-# Srix ↔️
+# Srix — fast, private transfers on your network
 
-**Fast, private file & clipboard transfers on your own network — no account, no cloud, nothing leaves your Wi‑Fi.**
+Srix is a lightweight local-network file transfer and live "clipboard" tool. Open it on one device, open it on another device on the same Wi‑Fi (or connect remotely via a Cloudflare Tunnel link), and instantly send files or share live text between them — no account, no cloud storage.
 
-Srix turns any laptop into a tiny local web app that every other device on the same network can open in a browser. Drop a file on your phone, grab it on your laptop. Copy text on one device, watch it show up live on every other tab. No installs on the receiving devices, no sign‑up, no data ever leaving your LAN.
+It has two main features:
+
+- **Send files** — upload from one device, download from any other connected device.
+- **Srix text (Quick Share)** — a live, shared clipboard. Anything typed or pasted shows up instantly on every other device watching the page.
+
+Optionally, a session can be **password protected**, which puts everyone who enters that password into their own private, isolated room (separate file list, separate Quick Share feed, separate connected-device list) — invisible to everyone in the public "Free for all" space.
 
 ---
 
-## Features
-
-- **📁 Send files** — upload from one device, download from any other, over plain HTTP on your local network.
-- **⚡ Srix text (Quick Share)** — a live, shared clipboard. Anything typed or pasted shows up instantly on every connected device via WebSockets.
-- **🔒 Private rooms** — optionally password-protect a session. Devices with the same password are placed in an isolated room (files, text, and device list are never visible to other rooms). Rooms auto-delete ~60 seconds after the last device disconnects. The default "Free for all" room is never auto-deleted.
-- **🔗 Share via QR code / link** — scan a QR code or copy a link to open Srix on another device instantly.
-- **🌓 Light/dark theme**, custom device names, and a single-port design that plays nicely with tunnels (e.g. Cloudflare Tunnel) or simple port forwarding.
-
 ## How it works
 
-The Python backend (`server.py`) runs three things:
+- A Python backend (`server.py`) runs a single HTTP + WebSocket server.
+- The frontend (`index.html`, `style.css`, `script.js`) is a single-page app served by that backend.
+- Everything — uploaded files, Quick Share text, and the device list — is scoped to a "room." No password = the shared public room. Entering a password hashes it into a private room ID; the server never stores the raw password.
+- Private rooms auto-clean themselves: once every device using a given password has disconnected, that room's files and shared text are automatically deleted about 60 seconds later (unless someone reconnects with that password first). The public "Free for all" room is never auto-deleted.
+- Only **one port** needs to be exposed to the outside world (`8080`). A small internal proxy listens on that port and forwards each connection to either the internal HTTP server or the internal WebSocket server depending on the request type, so both file transfer and Quick Share work through that single tunneled port. This is what makes it Cloudflare Tunnel / port-forward friendly.
 
-1. An internal HTTP server (file upload/download, static assets) bound to `127.0.0.1`.
-2. An internal WebSocket server (Quick Share live sync, device presence) bound to `127.0.0.1`.
-3. A tiny async **proxy** on `0.0.0.0:8080` — the only port you actually expose — that inspects each incoming connection and forwards it to the HTTP server or the WebSocket server based on whether it's a `websocket` upgrade request. This means you only ever need to forward/tunnel **one port** to make Srix reachable outside your machine, if you choose to.
+---
 
-The frontend (`index.html`, `style.css`, `script.js`) is a single-page app with three views: Home, Send files, and Srix text.
+## Project files
 
-## Requirements
-
-- Python 3.10+
-- The [`websockets`](https://pypi.org/project/websockets/) package
-
-```bash
-pip install -r requirements.txt
-```
-
-## Running from source
-
-```bash
-git clone https://github.com/<your-username>/srix.git
-cd srix
-pip install -r requirements.txt
-python server.py
-```
-
-Then open the printed URL (defaults to `http://localhost:8080`) — it will also open automatically in your default browser. Other devices on the same Wi-Fi can reach it at `http://<your-computer's-LAN-IP>:8080`.
-
-| Route | Purpose |
+| File | Purpose |
 |---|---|
-| `http://localhost:8080/` | Home screen |
-| `http://localhost:8080/transfer` | File transfer view |
-| `http://localhost:8080/quickshare` | Srix text (live clipboard) view |
+| `index.html` | App markup — home screen, file transfer screen, Quick Share screen, password/device-name/share-link modals |
+| `style.css` | Styling and theming (light/dark) |
+| `script.js` | Frontend logic — device list, WebSocket connection, uploads/downloads, Quick Share, room/password handling |
+| `server.py` | Backend server — HTTP file handling, WebSocket broadcast, room management, cleanup |
+| `global_launcher.exe` | Windows launcher — starts the server **and** opens a Cloudflare Tunnel for remote/global access |
+| `server.exe` | Windows build of the server for **local-network-only** use (no tunnel) |
 
-Uploaded files are saved under `received_files/<room>/` next to `server.py` (or next to the executable, if running a packaged build).
+---
 
-## Prebuilt executables
+## Running it — the `.exe` files
 
-Prebuilt Windows executables (`global_launcher.exe`, `server.exe`) are provided for people who just want to double-click and go, without installing Python. **These are large binaries and are best distributed as [GitHub Release](https://docs.github.com/en/repositories/releasing-projects-on-github) assets rather than committed into the repository** — see [Packaging](#packaging--distributing-executables) below for why, and for how to rebuild them yourself from source.
+There are two Windows executables, for two different situations:
 
-## Project structure
+### `server.exe` — local network only
+
+Just double-click it. It starts the server on your machine and serves the app at:
 
 ```
-srix/
-├── server.py           # Backend: HTTP server, WebSocket server, proxy, room logic
-├── index.html           # App shell / markup
-├── style.css             # Styling (light + dark theme)
-├── script.js             # Frontend logic: uploads, downloads, Quick Share, rooms, QR
-├── requirements.txt
-├── .gitignore
-├── received_files/       # Created at runtime — uploaded files land here (gitignored)
-└── README.md
+http://localhost:8080
 ```
 
-## Packaging / distributing executables
+Use this if everyone who needs access is on the **same Wi-Fi/LAN**.
 
-If you want to rebuild the `.exe` launcher and server yourself (e.g. with [PyInstaller](https://pyinstaller.org/)) rather than trusting a prebuilt binary:
+### `global_launcher.exe` — local network + remote/global access
 
-```bash
-pip install pyinstaller
-pyinstaller --onefile --name server server.py
-```
+Double-click it. This does everything `server.exe` does, **plus** it spins up a Cloudflare Tunnel automatically, so:
 
-You'll need to make sure `index.html`, `style.css`, and `script.js` are bundled as data files (PyInstaller's `--add-data` flag) since `server.py` looks for them relative to `sys._MEIPASS` when frozen.
+- It starts the local server (same as above — reachable at `localhost:8080`).
+- It prints/gives you a **Cloudflare Tunnel link** (a `https://….trycloudflare.com` style URL). Anyone with that link can reach your Srix session from **outside your network** too — not just people on your Wi-Fi.
 
-**Why not commit the `.exe` files to the repo directly:**
-- GitHub repos are meant for source; large binaries bloat clone size and `git` history forever (binaries don't diff/compress well).
-- People cloning the repo to read/modify the code have to download tens of megabytes they don't need.
-- It's harder for others to verify what a committed binary actually does versus source they can read — Release assets, built via a visible CI/build step, are more trustworthy.
+Use `global_launcher.exe` when you want to share files/text with someone who is **not** on your local network.
 
-Instead, publish them as assets on a [GitHub Release](https://github.com/<your-username>/srix/releases) (Releases → **Draft a new release** → attach `global_launcher.exe` / `server.exe`) and link to that release from this README once it exists, or point the release build step at whatever CI workflow you use.
+### Connecting another device on the same Wi-Fi (without the tunnel)
 
-## Privacy & security notes
+If you just want another device on your **same Wi-Fi** to connect (no need for the Cloudflare link):
 
-- Nothing is sent anywhere off your local network by default — there's no external server involved.
-- Room passwords are never stored; the server only keeps a SHA-256 hash used to bucket devices into the same room.
-- If you expose Srix to the internet (e.g. via a Cloudflare Tunnel) instead of just your LAN, anyone with the link can reach the "Free for all" room — use a password-protected room for anything sensitive, and treat the link like you would any file-sharing link.
+1. Open **Command Prompt** (`cmd`).
+2. Type:
+   ```
+   ipconfig
+   ```
+3. Find the line for **IPv4 Address** — it'll look something like `192.168.x.x`.
+4. Give that address to the other person in this format:
+   ```
+   192.168.x.x:8080
+   ```
+5. They open that address in their browser and land on the same Srix session as you.
 
-## License
+> Note: only port `8080` matters here — that's the single port the server exposes/tunnels, so it's the only one you ever need to share, forward, or open in a firewall.
 
-Add a license of your choice (e.g. MIT) as `LICENSE` before publishing — the repo currently has none.
+---
 
-## Contributing
+## Using the app
 
-Issues and PRs welcome. Please don't commit anything to `received_files/` or large binaries directly — see [Packaging](#packaging--distributing-executables) above.
+### Home screen
+- Shows how many devices are currently connected and a live status dot.
+- **Edit device name** — rename your device so others see a friendly name instead of a random ID.
+- **Share link** — opens a QR code + copyable link for the exact URL you're currently using (your LAN address or your active Cloudflare Tunnel URL), so another device can join by scanning instead of typing.
+- **Lock icon** — opens the password-protection modal (see below). Hidden/off by default — sessions start as "Free for all."
+- **Theme toggle** — switch light/dark.
+
+### Send files
+- **Upload** — drag & drop or choose files; click **Send files**. Supports large files via chunked/resumable upload.
+- **Available files** — see everything others have uploaded to the current room, select individual files or **Select all**, then **Download** or **Delete**.
+
+### Srix text (Quick Share)
+- A shared live text box. Type or paste, then **Srix it →** (or `Ctrl+Enter`) to broadcast it to every connected device instantly.
+- **Clear all** wipes the shared feed for everyone in the current room.
+- Up to 200 items per room, each up to 500,000 characters.
+
+### Password-protected sessions
+- Click the lock icon on the home screen → enter a password → **Protect this session**.
+- Anyone who enters the **same password** lands in that same private room with you; everyone else stays in the public "Free for all" space and can't see it.
+- Leaving the private room takes you back to "Free for all."
+- **Auto-delete:** once every device using that password has disconnected, its files and Quick Share text are automatically deleted ~60 seconds later — unless someone reconnects with that password before then.
+
+---
+
+## Quick start summary
+
+**Local network only:**
+1. Run `server.exe` (or `python server.py`) on the host machine.
+2. Open `http://localhost:8080` on the host.
+3. Get the host's IPv4 via `ipconfig` → share `192.168.x.x:8080` with others on the same Wi-Fi.
+
+**Remote/global access:**
+1. Run `global_launcher.exe`.
+2. Share the Cloudflare Tunnel link it gives you with anyone, anywhere.
+3. (Local devices can still use `localhost:8080` or the `192.168.x.x:8080` method above at the same time.)
