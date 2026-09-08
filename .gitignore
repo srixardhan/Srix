@@ -1,0 +1,25 @@
+# Runtime data — never commit received files
+received_files/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Prebuilt executables — publish these as GitHub Release assets instead
+*.exe
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

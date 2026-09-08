@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0e14">
+
+    <title>Srix — fast, private transfers on your network</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ==============================
+         PASSWORD PROTECTION (hidden until
+         the small lock icon on the home
+         screen is clicked - Free for all
+         is the default, no prompt for it)
+    =============================== -->
+
+    <div id="accessGateOverlay" class="modal-overlay" style="display: none;">
+
+        <div class="modal-card" id="accessGateCard">
+
+            <div id="accessGateSetupView">
+
+                <h2>Password protect this session</h2>
+                <p>Only people who enter the same password will land in this private space with you. Leave it be and everyone stays in the free-for-all space.</p>
+
+                <input
+                    type="password"
+                    id="accessGatePasswordInput"
+                    placeholder="Enter a password"
+                    autocomplete="off"
+                >
+
+                <p class="gate-hint gate-disclaimer">⚠️ Auto-delete: once every device using this password disconnects, its files and shared text are deleted automatically about 60 seconds later (unless someone reconnects with it first).</p>
+
+                <div class="modal-actions">
+                    <button id="accessGateCancelButton" type="button" class="ghost-button">Never mind</button>
+                    <button id="accessGateContinueButton" type="button" class="primary-button">Protect this session</button>
+                </div>
+
+            </div>
+
+            <div id="accessGateActiveView" style="display: none;">
+
+                <h2>🔒 This session is protected</h2>
+                <p>Anyone with the password lands here with you. Leave to go back to the free-for-all space.</p>
+
+                <div class="modal-actions">
+                    <button id="accessGateLeaveButton" type="button" class="primary-button">Leave — back to Free for all</button>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <main class="container">
+
+        <!-- ==============================
+             HOME
+        =============================== -->
+
+        <section id="home">
+
+            <div class="brand-row">
+
+                <div class="brand-mark">
+                    <span>↔</span>
+                </div>
+
+                <div class="brand">
+                    <h1>Srix</h1>
+                    <span>your devices, one network</span>
+                </div>
+
+            </div>
+
+            <p class="subtitle">
+                Drop files or text on one device, pick them up on another —
+                nothing leaves your network, nothing needs an account.
+            </p>
+
+            <div class="home-actions">
+
+                <button
+                    id="fileTransferButton"
+                    type="button"
+                    class="primary-action"
+                >
+                    <span class="button-icon">📁</span>
+
+                    <span class="button-content">
+                        <strong>Send files</strong>
+                        <small>Upload from one device, grab it on another</small>
+                    </span>
+
+                    <span class="button-arrow">→</span>
+                </button>
+
+                <button
+                    id="quickShareButton"
+                    type="button"
+                    class="secondary-action"
+                >
+                    <span class="button-icon">⚡</span>
+
+                    <span class="button-content">
+                        <strong>Srix text</strong>
+                        <small>Live clipboard shared across every open tab</small>
+                    </span>
+
+                    <span class="button-arrow">→</span>
+                </button>
+
+            </div>
+
+            <div class="network-panel">
+
+                <div class="network-panel-header">
+
+                    <div class="network-panel-title">
+                        <span class="pulse-dot" id="homeConnectionDot"></span>
+                        <span id="homeDeviceCount">Connecting…</span>
+                    </div>
+
+                    <div class="network-panel-actions">
+
+                        <button id="editDeviceNameButton" type="button" class="ghost-button">
+                            <span id="homeDeviceNameLabel">You are: Device</span>
+                            <span class="edit-pencil">✎</span>
+                        </button>
+
+                        <button id="shareLinkButton" type="button" class="ghost-button">
+                            <span>🔗 Share link</span>
+                        </button>
+
+                        <button id="privateRoomButton" type="button" class="ghost-button icon-only-button" title="Psst — password protect this session">
+                            <span id="privateRoomIcon">🔓</span>
+                        </button>
+
+                        <button id="themeToggleButton" type="button" class="ghost-button" aria-label="Toggle light and dark theme">
+                            <span id="themeToggleIcon">🌙</span>
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <div id="homeDeviceList" class="device-chip-row">
+                    <!-- device chips injected by script.js -->
+                </div>
+
+                <p id="homeRoomNote" class="room-status-note"></p>
+
+            </div>
+
+            <div id="homeUploadToast" class="upload-toast" style="display: none;">
+
+                <span class="upload-toast-icon">📤</span>
+
+                <div class="upload-toast-body">
+
+                    <span id="homeUploadToastText">Sending files…</span>
+
+                    <div class="upload-toast-track">
+                        <div id="homeUploadToastFill" class="upload-toast-fill"></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ==============================
+             FILE TRANSFER
+        =============================== -->
+
+        <div id="fileTransferSection" style="display: none;">
+
+            <button id="backButton" type="button" class="back-button">
+                ← Back
+            </button>
+
+            <h1>Send files</h1>
+
+            <p class="section-subtitle">Works between phones, laptops, and tablets on the same Wi-Fi.</p>
+
+            <p id="transferRoomNote" class="room-status-note"></p>
+
+            <div id="transferModes">
+
+                <button id="uploadModeButton" type="button">
+                    📤 Upload
+                </button>
+
+                <button id="downloadModeButton" type="button">
+                    📥 Available files
+                </button>
+
+            </div>
+
+            <!-- ==============================
+                 UPLOAD
+            =============================== -->
+
+            <div id="uploadSection" style="display: none;">
+
+                <div id="dropzone">
+
+                    <label for="file">
+                        Choose files to send
+                    </label>
+
+                    <input
+                        type="file"
+                        id="file"
+                        multiple
+                    >
+
+                    <p class="dropzone-hint">or drag and drop files here</p>
+
+                    <p id="fileCount"></p>
+
+                </div>
+
+                <div id="fileList"></div>
+
+                <button
+                    id="sendButton"
+                    type="button"
+                    style="display: none;"
+                >
+                    Send files
+                </button>
+
+            </div>
+
+            <!-- ==============================
+                 DOWNLOAD
+            =============================== -->
+
+            <div id="downloadSection">
+
+                <p id="downloadStatus">
+                    Looking for files…
+                </p>
+
+                <div id="selectAllArea">
+
+                    <button
+                        id="selectAllButton"
+                        type="button"
+                    >
+                        Select all
+                    </button>
+
+                </div>
+
+                <div id="selectedFileStatus">
+                    0 selected
+                </div>
+
+                <div id="downloadFileList"></div>
+
+                <div id="downloadActions">
+
+                    <button
+                        id="downloadSelectedButton"
+                        type="button"
+                        disabled
+                    >
+                        📥 Download
+                    </button>
+
+                    <button
+                        id="deleteSelectedButton"
+                        type="button"
+                        disabled
+                    >
+                        🗑 Delete
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================
+             QUICK SHARE
+        =============================== -->
+
+        <div id="quickShareSection">
+
+            <div class="container">
+
+                <div class="top">
+                    <div class="top-heading">
+                        <h1>Srix text</h1>
+                        <p class="section-subtitle">Anything you paste here shows up live, on every device watching this page.</p>
+                    </div>
+
+                    <div id="topActions">
+                        <button id="homeButton" class="ghost-button">← Back</button>
+                        <button id="clearAllButton" class="ghost-button danger">Clear all</button>
+                    </div>
+                </div>
+
+                <div id="deviceBar">
+
+                    <div id="deviceInfo">
+
+                        <div id="deviceName">
+                            📱 Device
+                        </div>
+
+                        <div id="connection" class="disconnected">
+                            Connecting…
+                        </div>
+
+                    </div>
+
+                    <div id="deviceCount">
+                        0 devices connected
+                    </div>
+
+                </div>
+
+                <p id="quickRoomNote" class="room-status-note"></p>
+
+                <div id="composer">
+
+                    <textarea
+                        id="editor"
+                        placeholder="Type, paste a link, or drop a code snippet…"
+                        spellcheck="false"
+                    ></textarea>
+
+                    <div class="composer-footer">
+                        <span class="composer-hint">Ctrl + Enter to send</span>
+                        <button id="shareButton">
+                            Srix it →
+                        </button>
+                    </div>
+
+                </div>
+
+                <div id="itemsHeader">
+
+                    <div id="itemsTitle">
+                        Shared just now
+                    </div>
+
+                    <div id="itemsCount">
+                        0 items
+                    </div>
+
+                </div>
+
+                <div id="items">
+
+                    <div class="empty">
+                        Nothing here yet.<br>
+                        Send something above — it lands instantly on every connected device.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+
+    <!-- ==============================
+         DEVICE NAME MODAL
+    =============================== -->
+
+    <div id="deviceNameOverlay" class="modal-overlay" style="display: none;">
+
+        <div class="modal-card">
+
+            <h2 id="deviceNameModalTitle">What should we call this device?</h2>
+            <p>Other devices on your network will see this name instead of a random ID.</p>
+
+            <input
+                type="text"
+                id="deviceNameInput"
+                maxlength="40"
+                placeholder="e.g. Arjun's Laptop"
+                autocomplete="off"
+            >
+
+            <div class="modal-actions">
+                <button id="deviceNameSkipButton" type="button" class="ghost-button">Use a random name</button>
+                <button id="deviceNameSaveButton" type="button" class="primary-button">Save name</button>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==============================
+         SHARE LINK / QR CODE
+    =============================== -->
+
+    <div id="shareLinkOverlay" class="modal-overlay" style="display: none;">
+
+        <div class="modal-card">
+
+            <h2>Scan to open on another device</h2>
+            <p>Works with the exact link this page was opened with — your local network address, or your Cloudflare Tunnel URL if that's what you're using right now.</p>
+
+            <div id="shareLinkQrWrap">
+                <img id="shareLinkQrImage" alt="QR code for this link">
+            </div>
+
+            <div id="shareLinkRow">
+                <span id="shareLinkText"></span>
+                <button id="copyShareLinkButton" type="button" class="ghost-button">📋 Copy</button>
+            </div>
+
+            <div class="modal-actions">
+                <button id="closeShareLinkButton" type="button" class="primary-button">Done</button>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div id="successMessage">
+
+        <span id="successText"></span>
+
+        <button
+            id="closeSuccess"
+            type="button"
+            aria-label="Close notification"
+        >
+            ×
+        </button>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
